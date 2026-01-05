@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/labstack/gommon/log"
 	"github.com/shopspring/decimal"
 )
 
@@ -83,6 +84,7 @@ WHERE id = $1
 `
 
 func (q *Queries) GetPaymentByID(ctx context.Context, id uuid.UUID) (*Payment, error) {
+	log.Info(ctx, "Getting payment by ID: %v", id)
 	row := q.db.QueryRow(ctx, getPaymentByID, id)
 	var i Payment
 	err := row.Scan(

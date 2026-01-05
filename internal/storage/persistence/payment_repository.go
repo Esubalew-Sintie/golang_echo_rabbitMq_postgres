@@ -80,30 +80,7 @@ func (r *PaymentRepository) GetPaymentByID(ctx context.Context, id uuid.UUID) (*
 	}, nil
 }
 
-func (r *PaymentRepository) GetPaymentByIDForUpdate(ctx context.Context, id uuid.UUID) (*entities.Payment, error) {
-	payment, err := r.queries.GetPaymentByIDForUpdate(ctx, id)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, apperrors.ErrPaymentNotFound
-		}
-		return nil, apperrors.ErrDatabaseOperationFailed
-	}
 
-	var processedAt *time.Time
-	if payment.ProcessedAt.Valid {
-		processedAt = &payment.ProcessedAt.Time
-	}
-
-	return &entities.Payment{
-		ID:             payment.ID,
-		Amount:         payment.Amount,
-		Currency:       payment.Currency,
-		IdempotencyKey: payment.IdempotencyKey,
-		Status:         entities.PaymentStatus(payment.Status),
-		CreatedAt:      payment.CreatedAt.Time,
-		ProcessedAt:    processedAt,
-	}, nil
-}
 
 func (r *PaymentRepository) UpdatePaymentStatus(ctx context.Context, id uuid.UUID, status entities.PaymentStatus) error {
 	params := sqlc.UpdatePaymentStatusParams{
@@ -123,31 +100,6 @@ func (r *PaymentRepository) UpdatePaymentStatus(ctx context.Context, id uuid.UUI
 
 func (r *PaymentRepository) GetPaymentByIdempotencyKey(ctx context.Context, idempotencyKey string) (*entities.Payment, error) {
 	payment, err := r.queries.GetPaymentByIdempotencyKey(ctx, idempotencyKey)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, apperrors.ErrPaymentNotFound
-		}
-		return nil, apperrors.ErrDatabaseOperationFailed
-	}
-
-	var processedAt *time.Time
-	if payment.ProcessedAt.Valid {
-		processedAt = &payment.ProcessedAt.Time
-	}
-
-	return &entities.Payment{
-		ID:             payment.ID,
-		Amount:         payment.Amount,
-		Currency:       payment.Currency,
-		IdempotencyKey: payment.IdempotencyKey,
-		Status:         entities.PaymentStatus(payment.Status),
-		CreatedAt:      payment.CreatedAt.Time,
-		ProcessedAt:    processedAt,
-	}, nil
-}
-
-func (r *PaymentRepository) GetPaymentByReference(ctx context.Context, reference string) (*entities.Payment, error) {
-	payment, err := r.queries.GetPaymentByIdempotencyKey(ctx, reference)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, apperrors.ErrPaymentNotFound
@@ -192,42 +144,9 @@ func (t *pgxTransaction) Rollback() error {
 	return t.tx.Rollback(t.ctx)
 }
 
-func (r *PaymentRepository) CreatePaymentWithTx(ctx context.Context, tx storage.Transaction, payment *entities.Payment) error {
-	pgxTx, ok := tx.(*pgxTransaction)
-	if !ok {
-		return apperrors.ErrDatabaseOperationFailed
-	}
-
-	txQueries := r.queries.WithTx(pgxTx.tx)
-	params := sqlc.CreatePaymentParams{
-		ID:             payment.ID,
-		Amount:         payment.Amount,
-		Currency:       payment.Currency,
-		IdempotencyKey: payment.IdempotencyKey,
-		Status:         string(payment.Status),
-		CreatedAt:      pgtype.Timestamptz{Time: payment.CreatedAt, Valid: true},
-	}
-
-	_, err := txQueries.CreatePayment(ctx, params)
-	if err != nil {
-		if isUniqueViolation(err) {
-			return apperrors.ErrDuplicateReference
-		}
-		return apperrors.ErrDatabaseOperationFailed
-	}
-	return nil
-}
-
 func (r *PaymentRepository) ProcessPaymentWithTransaction(ctx context.Context, paymentID uuid.UUID, newStatus entities.PaymentStatus) error {
-	tx, err := r.db.Begin(ctx)
-	if err != nil {
-		return apperrors.ErrDatabaseOperationFailed
-	}
-	defer tx.Rollback(ctx)
 
-	txQueries := r.queries.WithTx(tx)
-
-	payment, err := txQueries.GetPaymentByIDForUpdate(ctx, paymentID)
+	payment, err := r.GetPaymentByID(ctx, paymentID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return apperrors.ErrPaymentNotFound
@@ -255,12 +174,8 @@ func (r *PaymentRepository) ProcessPaymentWithTransaction(ctx context.Context, p
 		Status_2:    string(entities.PaymentStatusPending),
 	}
 
-	err = txQueries.UpdatePaymentStatus(ctx, updateParams)
+	err = r.queries.UpdatePaymentStatus(ctx, updateParams)
 	if err != nil {
-		return apperrors.ErrDatabaseOperationFailed
-	}
-
-	if err := tx.Commit(ctx); err != nil {
 		return apperrors.ErrDatabaseOperationFailed
 	}
 

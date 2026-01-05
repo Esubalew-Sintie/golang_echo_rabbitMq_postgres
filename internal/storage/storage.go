@@ -10,13 +10,12 @@ import (
 
 type Persistence interface {
 	GetPaymentByID(ctx context.Context, id uuid.UUID) (*entities.Payment, error)
-	GetPaymentByIDForUpdate(ctx context.Context, id uuid.UUID) (*entities.Payment, error)
 	UpdatePaymentStatus(ctx context.Context, id uuid.UUID, status entities.PaymentStatus) error
-	GetPaymentByReference(ctx context.Context, reference string) (*entities.Payment, error)
 
 	BeginTx(ctx context.Context) (Transaction, error)
 	ProcessPaymentWithTransaction(ctx context.Context, paymentID uuid.UUID, status entities.PaymentStatus) error
-	CreatePaymentWithTx(ctx context.Context, tx Transaction, payment *entities.Payment) error
+	CreatePayment(ctx context.Context, payment *entities.Payment) error
+	GetPaymentByIdempotencyKey(ctx context.Context, idempotencyKey string) (*entities.Payment, error)
 }
 
 type Transaction interface {

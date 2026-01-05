@@ -8,9 +8,6 @@ A production-ready payment gateway service built with Go that demonstrates enter
 # Start everything (PostgreSQL + RabbitMQ + App)
 docker-compose -f scripts/docker-compose.yml up -d && go run ./cmd/main.go
 
-# View API docs
-open http://localhost:8080/swagger/index.html
-
 # Test API health
 curl http://localhost:8080/health
 
@@ -102,30 +99,6 @@ go build -o payment-gateway ./cmd
 ```
 
 The API will be available at `http://localhost:8080`
-
-## 📖 API Documentation
-
-### Swagger UI
-
-Access the interactive API documentation at:
-```
-http://localhost:8080/swagger/index.html
-```
-
-The Swagger UI provides:
-- ✅ Interactive API testing
-- ✅ Request/response examples
-- ✅ Schema definitions
-- ✅ Authentication details
-
-### API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/swagger/index.html` | Swagger UI documentation |
-| `GET` | `/health` | Service health check |
-| `POST` | `/api/v1/payments` | Create payment (idempotent) |
-| `GET` | `/api/v1/payments/{id}` | Get payment details |
 
 ### Manual API Testing
 
@@ -334,7 +307,6 @@ open http://localhost:15672 (guest/guest)
 | `make help` | Show all available commands |
 | `make start` | Start everything (services + app) |
 | `make api-test` | Check API health |
-| `make swagger` | Generate Swagger docs |
 | `make docker-up` | Start PostgreSQL + RabbitMQ |
 | `make build` | Build the application |
 | `make run` | Run the application |
@@ -484,10 +456,6 @@ payment-gateway/
 ├── scripts/
 │   ├── Dockerfile               # Container definition
 │   └── docker-compose.yml       # Infrastructure setup
-├── docs/                        # Generated Swagger documentation
-│   ├── docs.go                  # Go documentation
-│   ├── swagger.json             # OpenAPI specification
-│   └── swagger.yaml             # YAML specification
 ├── Makefile                     # Build and development commands
 └── README.md                    # This file
 ```

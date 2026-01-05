@@ -2,7 +2,7 @@ package payment
 
 import (
 	"context"
-	customErrors "errors"
+	customErr "errors"
 	"math/rand"
 	"payment-gateway/internal/constant/errors"
 	"payment-gateway/internal/constant/model/dto"
@@ -36,41 +36,32 @@ func NewPaymentService(
 
 func (s *PaymentService) CreatePayment(ctx context.Context, req *dto.CreatePaymentRequest) (*response.CreatePaymentResponse, error) {
 	s.log.Info(ctx, "Creating payment with idempotency guarantee: reference=%s, currency=%s", req.IdempotencyKey, req.Currency)
-
-	tx, err := s.persistence.BeginTx(ctx)
-	if err != nil {
-		s.log.Error(ctx, "Failed to begin database transaction: %v", err)
-		return nil, errors.ErrDatabaseOperationFailed
+	amount := decimal.NewFromFloat(req.Amount)
+	if amount.LessThanOrEqual(decimal.Zero) {
+		s.log.Error(ctx, "Invalid amount: %f, must be greater than zero", req.Amount)
+		return nil, errors.ErrInvalidAmount
 	}
-	defer func() {
-		if err != nil {
-			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				s.log.Error(ctx, "Failed to rollback transaction: %v", rollbackErr)
-			}
-		}
-	}()
 
 	payment := &entities.Payment{
 		ID:             uuid.New(),
-		Amount:         decimal.NewFromFloat(req.Amount),
+		Amount:         amount,
 		Currency:       req.Currency,
 		IdempotencyKey: req.IdempotencyKey,
 		Status:         entities.PaymentStatusPending,
 		CreatedAt:      time.Now(),
 	}
-	existingPayment, getErr := s.persistence.GetPaymentByReference(ctx, req.IdempotencyKey)
-	if getErr != nil {
-		s.log.Error(ctx, "Failed to fetch existing payment after unique constraint error: %v", getErr)
-		if !customErrors.Is(getErr, errors.ErrPaymentNotFound) {
-			return nil, errors.ErrDuplicateTransaction
+	existingPayment, err := s.persistence.GetPaymentByIdempotencyKey(ctx, req.IdempotencyKey)
+	if err != nil {
+		s.log.Error(ctx, "Failed to get payment by idempotency key: %v", err)
+		if customErr.Is(err, errors.ErrDatabaseOperationFailed) {
+			return nil, errors.ErrInternalServerError
 		}
 	}
 	if existingPayment != nil {
-		s.log.Info(ctx, "Returning existing payment for idempotency key %s: %s", req.IdempotencyKey, existingPayment.ID.String())
 		return nil, errors.ErrDuplicateTransaction
 	}
 
-	err = s.persistence.CreatePaymentWithTx(ctx, tx, payment)
+	err = s.persistence.CreatePayment(ctx, payment)
 	if err != nil {
 		s.log.Error(ctx, "Failed to create payment in transaction: %v", err)
 		return nil, err
@@ -80,11 +71,6 @@ func (s *PaymentService) CreatePayment(ctx context.Context, req *dto.CreatePayme
 	if err != nil {
 		s.log.Error(ctx, "Failed to publish payment processing message: %s, error: %v", payment.ID.String(), err)
 		return nil, errors.ErrMessagePublishingFailed
-	}
-
-	if err = tx.Commit(); err != nil {
-		s.log.Error(ctx, "Failed to commit transaction: %v", err)
-		return nil, errors.ErrDatabaseOperationFailed
 	}
 
 	s.log.Info(ctx, "Payment created successfully with idempotency guarantee: %s, reference: %s", payment.ID.String(), req.IdempotencyKey)

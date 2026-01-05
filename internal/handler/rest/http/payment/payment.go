@@ -25,19 +25,6 @@ func NewPaymentHandler(service service.PaymentService, log logger.Logger) handle
 	}
 }
 
-// CreatePayment creates a new payment with idempotency guarantee
-//
-//	@Summary		Create payment
-//	@Description	Create a new payment with built-in idempotency protection. If a payment with the same idempotency_key already exists, it returns the existing payment.
-//	@Tags			Payment
-//	@Accept			json
-//	@Produce		json
-//	@Param			request	body		dto.CreatePaymentRequest	true	"Payment creation request"
-//	@Success		201			{object}	response.CreatePaymentResponse
-//	@Success		200			{object}	response.CreatePaymentResponse	"Existing payment returned (idempotent)"
-//	@Failure		400			{object}	response.Response			"Invalid request data"
-//	@Failure		503			{object}	response.Response			"Service unavailable"
-//	@Router			/api/v1/payments [post]
 func (h *PaymentHandler) CreatePayment(c echo.Context) error {
 	ctx := c.Request().Context()
 	var req dto.CreatePaymentRequest
@@ -62,19 +49,6 @@ func (h *PaymentHandler) CreatePayment(c echo.Context) error {
 	return response.SendSuccessResponse(c, http.StatusCreated, "Payment created successfully", result, nil)
 }
 
-// GetPayment retrieves payment details by ID
-//
-//	@Summary		Get payment details
-//	@Description	Retrieve detailed information about a payment including its current status
-//	@Tags			Payment
-//	@Accept			json
-//	@Produce		json
-//	@Param			id	path		string	true	"Payment ID (UUID)"
-//	@Success		200	{object}	response.GetPaymentResponse
-//	@Failure		404	{object}	response.Response	"Payment not found"
-//	@Failure		400	{object}	response.Response	"Invalid payment ID format"
-//	@Failure		503	{object}	response.Response	"Service unavailable"
-//	@Router			/api/v1/payments/{id} [get]
 func (h *PaymentHandler) GetPayment(c echo.Context) error {
 	ctx := c.Request().Context()
 	idStr := c.Param("id")
@@ -94,15 +68,6 @@ func (h *PaymentHandler) GetPayment(c echo.Context) error {
 	return response.SendSuccessResponse(c, http.StatusOK, "Payment retrieved successfully", payment, nil)
 }
 
-// HealthCheck returns service health status
-//
-//	@Summary		Service health check
-//	@Description	Returns basic health information about the service
-//	@Tags			Health
-//	@Accept			json
-//	@Produce		json
-//	@Success		200	{object}	response.Response
-//	@Router			/health [get]
 func (h *PaymentHandler) HealthCheck(c echo.Context) error {
 	healthData := map[string]interface{}{
 		"status":  "healthy",

@@ -6,25 +6,10 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 )
 
-// CreatePaymentRequest represents a request to create a new payment
-//
-// swagger:model CreatePaymentRequest
 type CreatePaymentRequest struct {
-	// Payment amount (must be greater than 0)
-	// required: true
-	// example: 100.50
-	Amount float64 `json:"amount"`
-
-	// Payment currency (ETB or USD)
-	// required: true
-	// enum: ETB,USD
-	// example: USD
-	Currency string `json:"currency"`
-
-	// Unique idempotency key to prevent duplicate payments
-	// required: true
-	// example: order-12345
-	IdempotencyKey string `json:"idempotency_key"`
+	Amount         float64 `json:"amount"`
+	Currency       string  `json:"currency"`
+	IdempotencyKey string  `json:"idempotency_key"`
 }
 
 func (r CreatePaymentRequest) Validate() error {
