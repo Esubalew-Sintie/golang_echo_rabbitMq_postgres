@@ -8,16 +8,24 @@ import (
 	"payment-gateway/internal/handler/middleware"
 	"payment-gateway/internal/pkg/logger"
 
+	echoSwagger "github.com/swaggo/echo-swagger"
 	"github.com/labstack/echo/v4"
 )
 
 func InitRoutes(e *echo.Echo, handler Handler, authMiddleware *middleware.AuthMiddleware, log logger.Logger) {
+	e.GET("/swagger.json", func(c echo.Context) error {
+		return c.File("docs/swagger.json")
+	})
+
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
+
 	e.GET("/health", handler.Payment.HealthCheck)
 
 	e.POST("/api/v1/auth/login", func(c echo.Context) error {
 		userID := "user123"
 		username := "testuser"
 		email := "test@example.com"
+
 
 		token, err := authMiddleware.GenerateToken(userID, username, email)
 		if err != nil {
