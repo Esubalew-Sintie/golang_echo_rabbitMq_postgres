@@ -1,0 +1,234 @@
+basePath: /
+definitions:
+  dto.CreatePaymentRequest:
+    properties:
+      amount:
+        description: |-
+          Payment amount (must be greater than 0)
+          required: true
+          example: 100.50
+        type: number
+      currency:
+        description: |-
+          Payment currency (ETB or USD)
+          required: true
+          enum: ETB,USD
+          example: USD
+        type: string
+      idempotency_key:
+        description: |-
+          Unique idempotency key to prevent duplicate payments
+          required: true
+          example: order-12345
+        type: string
+    type: object
+  entities.PaymentStatus:
+    enum:
+    - PENDING
+    - SUCCESS
+    - FAILED
+    type: string
+    x-enum-varnames:
+    - PaymentStatusPending
+    - PaymentStatusSuccess
+    - PaymentStatusFailed
+  response.CreatePaymentResponse:
+    properties:
+      created_at:
+        description: |-
+          Payment creation timestamp
+          example: 2024-01-05T10:30:00Z
+        type: string
+      payment_id:
+        description: |-
+          Unique payment identifier
+          example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/entities.PaymentStatus'
+        description: |-
+          Current payment status
+          enum: PENDING,SUCCESS,FAILED
+          example: PENDING
+    type: object
+  response.DetailedErrorResponse:
+    properties:
+      details:
+        items:
+          $ref: '#/definitions/response.FieldError'
+        type: array
+      ft_reference:
+        type: string
+      message:
+        type: string
+      type:
+        type: string
+    type: object
+  response.FieldError:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    type: object
+  response.GetPaymentResponse:
+    properties:
+      amount:
+        description: |-
+          Payment amount as string
+          example: 100.50
+        type: string
+      created_at:
+        description: |-
+          Payment creation timestamp
+          example: 2024-01-05T10:30:00Z
+        type: string
+      currency:
+        description: |-
+          Payment currency
+          enum: ETB,USD
+          example: USD
+        type: string
+      id:
+        description: |-
+          Unique payment identifier
+          example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      idempotency_key:
+        description: |-
+          Idempotency key used for the payment
+          example: order-12345
+        type: string
+      processed_at:
+        description: |-
+          Payment processing completion timestamp (null if still pending)
+          example: 2024-01-05T10:30:05Z
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/entities.PaymentStatus'
+        description: |-
+          Current payment status
+          enum: PENDING,SUCCESS,FAILED
+          example: SUCCESS
+    type: object
+  response.Response:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/response.DetailedErrorResponse'
+      message:
+        type: string
+      meta: {}
+      status:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is a production-ready payment gateway service that demonstrates
+    enterprise-grade architecture with idempotent operations, asynchronous processing,
+    and reliable message delivery.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Payment Gateway API
+  version: 1.0.0
+paths:
+  /api/v1/payments:
+    post:
+      consumes:
+      - application/json
+      description: Create a new payment with built-in idempotency protection. If a
+        payment with the same idempotency_key already exists, it returns the existing
+        payment.
+      parameters:
+      - description: Payment creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreatePaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Existing payment returned (idempotent)
+          schema:
+            $ref: '#/definitions/response.CreatePaymentResponse'
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.CreatePaymentResponse'
+        "400":
+          description: Invalid request data
+          schema:
+            $ref: '#/definitions/response.Response'
+        "503":
+          description: Service unavailable
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Create payment
+      tags:
+      - Payment
+  /api/v1/payments/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve detailed information about a payment including its current
+        status
+      parameters:
+      - description: Payment ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.GetPaymentResponse'
+        "400":
+          description: Invalid payment ID format
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Payment not found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "503":
+          description: Service unavailable
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get payment details
+      tags:
+      - Payment
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Returns basic health information about the service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Service health check
+      tags:
+      - Health
+securityDefinitions:
+  Bearer:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

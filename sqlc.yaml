@@ -1,0 +1,24 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "./database/queries"
+    schema: "./database/migrations"
+    gen:
+      go:
+        package: "sqlc"
+        out: "./internal/storage/persistence/sqlc"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_interface: false
+        emit_empty_slices: true
+        emit_exact_table_names: false
+        emit_result_struct_pointers: true
+        overrides:
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - column: "payments.amount"
+            go_type: "github.com/shopspring/decimal.Decimal"
+          - db_type: "timestamp"
+            go_type: "time.Time"
+          - db_type: "timestamptz"
+            go_type: "time.Time"
